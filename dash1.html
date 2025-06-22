@@ -1,0 +1,244 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>דאשבורד תפעולי</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Rubik', sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, #e0c3fc, #8ec5fc);
+            color: #333;
+            line-height: 1.6;
+            direction: rtl;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            background: linear-gradient(135deg, #c3a7f6, #a2d2ff);
+            color: #333;
+            padding: 2rem;
+            text-align: center;
+            border-radius: 0 0 30px 30px;
+            box-shadow: 0 6px 12px rgba(0,0,0,0.1);
+            position: relative;
+            z-index: 1;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            font-weight: 700;
+            color: #4a4e69;
+        }
+
+        p {
+            font-size: 1.2rem;
+            max-width: 800px;
+            margin: 0 auto 2rem;
+            color: #5c6378;
+        }
+
+        .tableau-container {
+            background: white;
+            border-radius: 15px;
+            padding: 1rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            position: relative;
+            min-height: 800px;
+            overflow: hidden;
+        }
+
+        .loading-spinner {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255,255,255,0.8);
+            z-index: 2;
+        }
+
+        .spinner {
+            border: 4px solid #f4a8e4;
+            border-top: 4px solid #a2d2ff;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .fallback-message {
+            display: none;
+            text-align: center;
+            padding: 2rem;
+            color: #e63946;
+            font-size: 1.1rem;
+        }
+
+        .fallback-image {
+            width: 100%;
+            height: 800px;
+            object-fit: cover;
+            border-radius: 10px;
+        }
+
+        .back-btn {
+            display: inline-block;
+            padding: 0.8rem 1.5rem;
+            font-size: 1rem;
+            background: linear-gradient(45deg, #f4a8e4, #a2d2ff);
+            color: #333;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            margin: 1rem;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+
+        .back-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+            background: linear-gradient(45deg, #ffcad4, #ffd6a5);
+        }
+
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 1.8rem;
+            }
+
+            p {
+                font-size: 1rem;
+            }
+
+            .tableau-container {
+                padding: 0.5rem;
+            }
+
+            .fallback-image {
+                height: 400px;
+            }
+        }
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;700&display=swap" rel="stylesheet">
+    <script type="module" src="https://public.tableau.com/javascripts/api/tableau.embedding.3.latest.min.js"></script>
+</head>
+<body>
+    <header>
+        <h1>דאשבורד תפעולי – מעקב שוטף אחר קמפיינים פעילים</h1>
+        <p>בדף זה ניתן לצפות בזמן אמת במצב הקמפיינים הפעילים: פילוח לפי סטטוס, ביצועים של משפיענים מובילים, והתראות לשיפור ביצועים.</p>
+    </header>
+    <div class="container">
+        <a href="index.html" class="back-btn">חזרה לדף הבית</a>
+        <div class="tableau-container">
+            <div class="loading-spinner" id="loading">
+                <div class="spinner"></div>
+            </div>
+            <tableau-viz 
+                id="tableauViz"
+                src="https://public.tableau.com/views/_17505955965610/sheet2?:language=en-US&publish=yes&:sid=&:redirect=auth&:display_count=n&:origin=viz_share_link"
+                toolbar="bottom"
+                hide-tabs
+                width="100%"
+                height="800">
+            </tableau-viz>
+            <div class="fallback-message" id="fallback">
+                <p>לא ניתן לטעון את הדאשבורד. אנא בדקו את חיבור האינטרנט או ודאו שהקישור ל-Tableau תקין.</p>
+                <img src="https://source.unsplash.com/1200x800/?dashboard,analytics" alt="דאשבורד תפעולי חלופי" class="fallback-image">
+            </div>
+        </div>
+    </div>
+    <script>
+        const viz = document.getElementById('tableauViz');
+        const fallback = document.getElementById('fallback');
+        const loading = document.getElementById('loading');
+
+        viz.addEventListener('firstinteractive', () => {
+            console.log('Tableau viz loaded successfully for תפעולי');
+            loading.style.display = 'none';
+            viz.style.display = 'block';
+        });
+
+        viz.addEventListener('error', (e) => {
+            console.error('Error loading Tableau viz for תפעולי:', e);
+            loading.style.display = 'none';
+            fallback.style.display = 'block';
+            viz.style.display = 'none';
+        });
+
+        // Fallback after 10 seconds if no load event
+        setTimeout(() => {
+            if (!viz.shadowRoot || !viz.shadowRoot.querySelector('iframe')) {
+                console.error('Tableau viz did not load within 10 seconds for תפעולי');
+                loading.style.display = 'none';
+                fallback.style.display = 'block';
+                viz.style.display = 'none';
+            }
+        }, 10000);
+
+        // Log network errors for the Tableau script
+        fetch('https://public.tableau.com/javascripts/api/tableau.embedding.3.latest.min.js', { method: 'HEAD' })
+            .catch(err => console.error('Network error accessing Tableau Embedding API:', err));
+    </script>
+</body>
+</html>
